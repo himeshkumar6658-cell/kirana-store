@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirana Store</title>
+<style>
+body{margin:0;background:#f1f5f9;font-family:Arial;color:#172033}
+header{background:#1557c0;color:white;padding:20px;font-size:23px;font-weight:bold}
+main{padding:15px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:white;padding:15px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 7px #ddd}
+.number{font-size:23px;font-weight:bold;color:#1557c0}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+button{background:#1557c0;color:white;border:0;border-radius:8px;padding:11px;cursor:pointer}
+nav button{flex:1}
+input{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border:1px solid #bbb;border-radius:8px}
+h3{margin-top:5px}
+.item{border-bottom:1px solid #ddd;padding:12px 0}
+small{color:#666}
+</style>
+</head>
+<body>
+<header>🏪 Kirana Store Manager</header>
+<main>
+<div class="cards">
+<div class="card">आज की बिक्री<div class="number" id="sales">₹0</div></div>
+<div class="card">कुल ऑर्डर<div class="number" id="count">0</div></div>
+<div class="card">बाकी पेमेंट<div class="number" id="due">₹0</div></div>
+<div class="card">कुल सामान<div class="number" id="stock">0</div></div>
+</div>
+<nav>
+<button onclick="show('orders')">ऑर्डर</button>
+<button onclick="show('inventory')">स्टॉक</button>
+<button onclick="show('payments')">पेमेंट</button>
+<button onclick="show('delivery')">डिलीवरी</button>
+</nav>
+<section id="orders" class="card">
+<h3>नया ऑर्डर</h3>
+<input id="customer" placeholder="ग्राहक का नाम">
+<input id="item" placeholder="सामान का नाम">
+<input id="qty" type="number" placeholder="मात्रा">
+<input id="amount" type="number" placeholder="कुल रकम ₹">
+<button onclick="addOrder()">ऑर्डर सेव करें</button>
+<h3>ऑर्डर लिस्ट</h3>
+<div id="orderList"></div>
+</section>
+<section id="inventory" class="card" hidden>
+<h3>सामान जोड़ें</h3>
+<input id="product" placeholder="सामान का नाम">
+<input id="quantity" type="number" placeholder="स्टॉक">
+<input id="price" type="number" placeholder="कीमत ₹">
+<button onclick="addProduct()">स्टॉक सेव करें</button>
+<div id="productList"></div>
+</section>
+<section id="payments" class="card" hidden>
+<h3>बाकी पेमेंट</h3>
+<div id="paymentList"></div>
+</section>
+<section id="delivery" class="card" hidden>
+<h3>डिलीवरी स्टेटस</h3>
+<div id="deliveryList"></div>
+</section>
+</main>
+<script>
+let orders=JSON.parse(localStorage.getItem('orders')||'[]');
+let products=JSON.parse(localStorage.getItem('products')||'[]');
+function save(){
+localStorage.setItem('orders',JSON.stringify(orders));
+localStorage.setItem('products',JSON.stringify(products));
+render();
+}
+function show(id){
+['orders','inventory','payments','delivery'].forEach(x=>{
+document.getElementById(x).hidden=x!==id;
+});
+}
+function addOrder(){
+let customer=document.getElementById('customer').value.trim();
+let item=document.getElementById('item').value.trim();
+let qty=Number(document.getElementById('qty').value);
+let amount=Number(document.getElementById('amount').value);
+if(!customer||!item||qty<1||amount<=0){alert('सभी जानकारी सही भरें');return}
+orders.push({customer,item,qty,amount,paid:0,status:'ऑर्डर मिला',date:new Date().toLocaleDateString('en-CA')});
+save();
+['customer','item','qty','amount'].forEach(x=>document.getElementById(x).value='');
+}
+function addProduct(){
+let name=document.getElementById('product').value.trim();
+let qty=Number(document.getElementById('quantity').value);
+let price=Number(document.getElementById('price').value);
+if(!name||qty<0||price<0){alert('सही जानकारी भरें');return}
+let p=products.find(x=>x.name.toLowerCase()===name.toLowerCase());
+if(p){p.qty+=qty;p.price=price}
+else products.push({name,qty,price});
+save();
+['product','quantity','price'].forEach(x=>document.getElementById(x).value='');
+}
+function collect(i){
+let o=orders[i];
+let n=Number(prompt('कितना पेमेंट मिला?',o.amount-o.paid));
+if(n>0&&n<=o.amount-o.paid){o.paid+=n;save()}
+else alert('सही रकम डालें');
+}
+function delivery(i){
+let states=['ऑर्डर मिला','तैयार हो रहा है','डिलीवरी के लिए निकला','डिलीवर हो गया'];
+let o=orders[i];
+o.status=states[(states.indexOf(o.status)+1)%states.length];
+save();
+}
+function render(){
+let today=new Date().toLocaleDateString('en-CA');
+let sales=orders.filter(o=>o.date===today).reduce((s,o)=>s+o.amount,0);
+let due=orders.reduce((s,o)=>s+o.amount-o.paid,0);
+document.getElementById('sales').textContent='₹'+sales;
+document.getElementById('count').textContent=orders.length;
+document.getElementById('due').textContent='₹'+due;
+document.getElementById('stock').textContent=products.reduce((s,p)=>s+p.qty,0);
+document.getElementById('orderList').innerHTML=orders.map((o,i)=>`<div class="item"><b>${o.customer}</b><br>${o.item} × ${o.qty}<br>₹${o.amount} · बाकी ₹${o.amount-o.paid}<br><small>${o.status}</small></div>`).join('')||'अभी ऑर्डर नहीं हैं';
+document.getElementById('productList').innerHTML=products.map(p=>`<div class="item">${p.name} — स्टॉक ${p.qty} — ₹${p.price}</div>`).join('');
+document.getElementById('paymentList').innerHTML=orders.map((o,i)=>o.paid<o.amount?`<div class="item">${o.customer} — बाकी ₹${o.amount-o.paid}<br><button onclick="collect(${i})">पेमेंट मिला</button></div>`:'').join('')||'कोई बाकी पेमेंट नहीं';
+document.getElementById('deliveryList').innerHTML=orders.map((o,i)=>`<div class="item">${o.customer} — ${o.status}<br><button onclick="delivery(${i})">अगला स्टेटस</button></div>`).join('')||'कोई ऑर्डर नहीं';
+}
+render();
+</script>
+</body>
+</html>
